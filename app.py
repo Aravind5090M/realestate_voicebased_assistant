@@ -50,23 +50,11 @@ st.markdown("---")
 PREDEFINED_INSPECTION_FIELDS = [
     {"id": "inspector_name", "name": "Inspector Name"},
     {"id": "inspection_company", "name": "Inspection Company"},
-    # {"id": "first_name", "name": "First Name"},
-    # {"id": "last_name", "name": "Last Name"},
-    # {"id": "email", "name": "Email Address"},
-    # {"id": "mobile_number", "name": "Mobile Number"},
     {"id": "property_address", "name": "Property Address"},
     {"id": "inspection_date", "name": "Inspection Date"},
-    # {"id": "property_type", "name": "Property Type (House/Condo/Townhouse)"},
-    # {"id": "property_age", "name": "Property Age (Year Built)"},
-    # {"id": "square_footage", "name": "Square Footage"},
-    # {"id": "bedrooms", "name": "Number of Bedrooms"},
-    # {"id": "bathrooms", "name": "Number of Bathrooms"},
-    # {"id": "garage", "name": "Garage Type/Size"},
-    # {"id": "client_notes", "name": "Special Client Requests/Notes"},
 ]
 
 if 'form_fields' not in st.session_state:
-    # Initialize with predefined fields for real estate inspections
     st.session_state.form_fields = PREDEFINED_INSPECTION_FIELDS.copy()
 if 'custom_fields_added' not in st.session_state:
     st.session_state.custom_fields_added = []
@@ -75,7 +63,7 @@ if 'field_values' not in st.session_state:
 if 'recording_field' not in st.session_state:
     st.session_state.recording_field = None
 if 'audio_processor' not in st.session_state:
-    st.session_state.audio_processor = None  # Will be initialized after AudioRecorder class
+    st.session_state.audio_processor = None
 if 'confirmation_field' not in st.session_state:
     st.session_state.confirmation_field = None
 if 'temp_audio_bytes' not in st.session_state:
@@ -88,7 +76,6 @@ PREDEFINED_QUESTIONS = [
     "Can you describe the key features of the property, including size, layout, and notable upgrades?",
     "What is the current asking price and how was that price determined or justified?",
     "Are there any outstanding liens, easements, or legal issues affecting the property?",
-    #"How old are the major systems (roof, HVAC, plumbing, electrical) and have they been recently serviced or replaced?",
 ]
 if 'answers' not in st.session_state:
     st.session_state.answers = {}
@@ -117,11 +104,10 @@ if 'qna_relevancy_score' not in st.session_state:
 if 'qna_recording_started' not in st.session_state:
     st.session_state.qna_recording_started = False
 if 'qna_audio_processor' not in st.session_state:
-    st.session_state.qna_audio_processor = None # Will be initialized after AudioRecorder class
+    st.session_state.qna_audio_processor = None
 
-# Initialize main form audio processor  
 if 'audio_processor' not in st.session_state:
-    st.session_state.audio_processor = None # Will be initialized after AudioRecorder class
+    st.session_state.audio_processor = None
 
 
 # =====================================================================================
@@ -139,7 +125,7 @@ class AudioRecorder(AudioProcessorBase):
             audio_bytes = resampled_frame.to_ndarray().tobytes()
             self.audio_buffer.put(audio_bytes)
         return frame
-        
+
     def get_audio_bytes(self):
         audio_segments = []
         while not self.audio_buffer.empty():
@@ -156,7 +142,6 @@ def pcm_to_wav_in_memory(audio_bytes, sample_rate=16000):
         wf.writeframes(audio_bytes)
     return wav_buffer.getvalue()
 
-# Initialize audio processor after class definition - only when needed
 def get_audio_processor():
     if 'audio_processor' not in st.session_state or st.session_state.audio_processor is None:
         st.session_state.audio_processor = AudioRecorder()
@@ -181,7 +166,6 @@ def poll_assemblyai_for_result(transcript_id, headers):
             st.error(f"Error polling for transcription result: {e}")
             return None
 
-# --- Transcription function for Form Filler ---
 def transcribe_for_form(api_key, audio_file_path, language_preference):
     headers = {'authorization': api_key}
     try:
@@ -194,16 +178,16 @@ def transcribe_for_form(api_key, audio_file_path, language_preference):
         return None
 
     json_data = {
-        'audio_url': upload_url, 
-        'punctuate': True, 
+        'audio_url': upload_url,
+        'punctuate': True,
         'format_text': True,
-        'speech_model': 'best'  # Use best speech model for better accuracy
+        'speech_model': 'best'
     }
     if language_preference == 'auto':
         json_data['language_detection'] = True
     else:
         json_data['language_code'] = language_preference
-    
+
     try:
         transcript_response = requests.post('https://api.assemblyai.com/v2/transcript', json=json_data, headers=headers)
         transcript_response.raise_for_status()
@@ -222,7 +206,7 @@ def transcribe_for_form(api_key, audio_file_path, language_preference):
             st.warning("⚠️ No speech detected in the audio. Please ensure you speak clearly and try again.")
             return None
         return {
-            "text": text, 
+            "text": text,
             "language_code": polling_result.get('language_code', 'en'),
             "confidence": polling_result.get('confidence', 0.0)
         }
@@ -233,7 +217,6 @@ def transcribe_for_form(api_key, audio_file_path, language_preference):
         st.error("Failed to get transcription result from AssemblyAI")
     return None
 
-# --- Transcription function for QnA Analysis ---
 def transcribe_for_qna(api_key, audio_file_path):
     headers = {'authorization': api_key}
     try:
@@ -257,7 +240,7 @@ def transcribe_for_qna(api_key, audio_file_path):
     except Exception as e:
         st.error(f"Error requesting transcription: {e}")
         return None
-    
+
     polling_result = poll_assemblyai_for_result(transcript_id, headers)
     if polling_result and polling_result['status'] == 'completed':
         return {
@@ -269,7 +252,6 @@ def transcribe_for_qna(api_key, audio_file_path):
         st.error(f"Transcription failed: {polling_result.get('error')}")
     return None
 
-# --- English conversion function for Q&A ---
 def convert_to_english(openai_api_key, text, language_code):
     """Convert text to English using CrewAI translator agent"""
     try:
@@ -296,9 +278,8 @@ def convert_to_english(openai_api_key, text, language_code):
         return str(english_text).strip()
     except Exception as e:
         st.error(f"English conversion error: {e}")
-        return text  # Return original text if conversion fails
+        return text
 
-# --- CrewAI Functions (Combined) ---
 def extract_field_info_with_crewai(openai_api_key, field_name, transcript, language_code):
     try:
         llm = ChatOpenAI(api_key=openai_api_key, model_name="gpt-4o", temperature=0.1)
@@ -312,7 +293,7 @@ def extract_field_info_with_crewai(openai_api_key, field_name, transcript, langu
         translation_crew = Crew(agents=[translator_agent], tasks=[translation_task], process=Process.sequential)
         english_transcript = translation_crew.kickoff()
         st.info(f"Translated: \"{english_transcript}\"")
-        
+
         extractor_agent = Agent(
             role='Information Extractor Agent',
             goal=f"Extract the specific information for the form field: '{field_name}'. Output ONLY the value.",
@@ -327,24 +308,19 @@ def extract_field_info_with_crewai(openai_api_key, field_name, transcript, langu
         return ""
 
 def process_answer_with_crewai(openai_api_key, question, answer, language_code):
-    # This function is long and unchanged, so it's kept as is from the original qna_analysis.py
     if not answer: return "No answer provided."
     try:
         llm = ChatOpenAI(api_key=openai_api_key, model_name="gpt-4o", temperature=0.2)
-        # Define Agents
         translator_agent = Agent(role='Expert Language Translator', goal='Translate text to English, but first verify if it is already English.', backstory='An expert linguist who trusts text content over potentially incorrect language codes.', llm=llm)
         analyzer_agent = Agent(role='Answer Relevance Analyzer', goal='Analyze ENGLISH text for relevance to the question.', backstory='Expert in linguistic analysis.', llm=llm)
         relevancy_agent = Agent(role='Answer Quality Scorer', goal='Provide numerical scores (1-10) for answer quality.', backstory='Professional evaluator.', llm=llm)
         summarizer_agent = Agent(role='Concise Summarizer', goal='Summarize the key points of the ENGLISH answer.', backstory='Professional editor.', llm=llm)
-        # Define Tasks
         translation_task = Task(description=f"Text: '{answer}'. Detected language: '{language_code}'. If the text content is English, return it as is. Otherwise, translate to English.", agent=translator_agent, expected_output="The text in English.")
         analysis_task = Task(description=f"Analyze this ENGLISH answer for the question: '{question}'.", agent=analyzer_agent, context=[translation_task], expected_output="Key points and a conclusion on relevance.")
         relevancy_task = Task(description="Based on the analysis, score the answer's relevance, content match, completeness, and specificity from 1-10. Provide brief reasons.", agent=relevancy_agent, context=[analysis_task], expected_output="A formatted list of scores with one-line explanations.")
         summary_task = Task(description="Create a concise, two-sentence summary of the user's response.", agent=summarizer_agent, context=[analysis_task], expected_output="A polished two-sentence summary.")
-        # Create and run Crew
         qa_crew = Crew(agents=[translator_agent, analyzer_agent, relevancy_agent, summarizer_agent], tasks=[translation_task, analysis_task, relevancy_task, summary_task], process=Process.sequential)
         crew_results = qa_crew.kickoff()
-        # Parse results
         task_outputs = crew_results.tasks_output
         relevancy_result = task_outputs[2].raw if len(task_outputs) > 2 else "Scoring unavailable."
         summary_result = task_outputs[3].raw if len(task_outputs) > 3 else "Summary unavailable."
@@ -359,30 +335,57 @@ def process_answer_with_crewai(openai_api_key, question, answer, language_code):
 
 load_dotenv()
 
-# Use a single set of API keys stored in session_state for the whole app
-if 'assemblyai_api_key' not in st.session_state:
-    st.session_state.assemblyai_api_key = os.getenv("ASSEMBLYAI_API_KEY") or ""
-if 'openai_api_key' not in st.session_state:
-    st.session_state.openai_api_key = os.getenv("OPENAI_API_KEY") or ""
+# --- Initialize keys from secrets (this runs only once) ---
+if 'keys_loaded' not in st.session_state:
+    st.session_state.assemblyai_api_key = st.secrets.get("ASSEMBLYAI_API_KEY", "")
+    st.session_state.openai_api_key = st.secrets.get("OPENAI_API_KEY", "")
+    st.session_state.keys_loaded = True
 
+# REPLACE WITH THIS ENTIRE BLOCK
 with st.sidebar:
     st.header("🔑 API Configuration")
-    assemblyai_api_key = st.text_input("Audio AI API Key", type="password", value=st.session_state.assemblyai_api_key)
-    openai_api_key = st.text_input("AI API Key", type="password", value=st.session_state.openai_api_key)
-    
-    # Update session state with current values
-    st.session_state.assemblyai_api_key = assemblyai_api_key
-    st.session_state.openai_api_key = openai_api_key
+    st.markdown("API keys are loaded from secrets and are not displayed.")
+
+    # --- Logic for OpenAI API Key ---
+    if st.session_state.openai_api_key:
+        st.success("✅ OpenAI API Key Loaded")
+        if st.button("Change OpenAI Key"):
+            st.session_state.openai_api_key = ""
+            st.rerun()
+    else:
+        st.subheader("OpenAI API Key")
+        new_openai_key = st.text_input("Enter your AI API Key", type="password", key="openai_input")
+        if new_openai_key:
+            st.session_state.openai_api_key = new_openai_key
+            st.rerun()
+
+    st.markdown("---")
+
+    # --- Logic for AssemblyAI API Key ---
+    if st.session_state.assemblyai_api_key:
+        st.success("✅ Audio AI API Key Loaded")
+        if st.button("Change Audio AI Key"):
+            st.session_state.assemblyai_api_key = ""
+            st.rerun()
+    else:
+        st.subheader("AssemblyAI API Key")
+        new_assemblyai_key = st.text_input("Enter your Audio AI API Key", type="password", key="assemblyai_input")
+        if new_assemblyai_key:
+            st.session_state.assemblyai_api_key = new_assemblyai_key
+            st.rerun()
 
     # --- Audio Settings (shared for both screens) ---
+    st.markdown("---")
     st.header("🎙️ Audio Settings")
-    language_options = {"Automatic Detection": "auto",
-                        "English": "en",
-                        "Spanish": "es",
-                        "French": "fr",
-                        "German": "de",
-                        "Telugu": "te",
-                        "Hindi": "hi"}
+    language_options = {
+        "Automatic Detection": "auto",
+        "English": "en",
+        "Spanish": "es",
+        "French": "fr",
+        "German": "de",
+        "Telugu": "te",
+        "Hindi": "hi"
+    }
     selected_language_label = st.selectbox("Select Recording Language", options=list(language_options.keys()))
     selected_language_code = language_options[selected_language_label]
 
@@ -392,37 +395,27 @@ with st.sidebar:
 # =====================================================================================
 
 if st.session_state.current_screen == 'form_filler':
-    
     st.title("🏠 Real Estate Inspection Form Filler")
     st.markdown("### Fill Out Property Inspection Details Using Voice")
     st.markdown("This form includes essential fields for real estate house inspections. Use your voice to fill them out efficiently, or add custom fields as needed.")
 
-    # --- Form Setup (only for form_filler screen) ---
     with st.sidebar:
         st.header("📋 Form Setup")
-        
-        # Show predefined fields count
         predefined_count = len(PREDEFINED_INSPECTION_FIELDS)
         custom_count = len(st.session_state.custom_fields_added)
         total_fields = len(st.session_state.form_fields)
-        
         st.markdown(f"**📋 Predefined Fields:** {predefined_count} (Real Estate Inspection)")
         if custom_count > 0:
             st.markdown(f"**➕ Custom Fields:** {custom_count}")
         st.markdown(f"**📊 Total Fields:** {total_fields}")
-        
-        # Option to reset to predefined fields only
         if custom_count > 0:
             if st.button("🔄 Reset to Predefined Fields Only", help="Remove all custom fields"):
                 st.session_state.form_fields = PREDEFINED_INSPECTION_FIELDS.copy()
                 st.session_state.custom_fields_added = []
-                # Clear values for removed custom fields
                 for field_id in list(st.session_state.field_values.keys()):
                     if not any(f["id"] == field_id for f in st.session_state.form_fields):
                         del st.session_state.field_values[field_id]
                 st.rerun()
-        
-        # Add custom field form
         st.markdown("**➕ Add Custom Field:**")
         with st.form("add_field_form", clear_on_submit=True):
             new_field_name = st.text_input("Custom Field Name", placeholder="e.g., Pool Type, Basement Details")
@@ -433,7 +426,7 @@ if st.session_state.current_screen == 'form_filler':
                 st.success(f"Added: {new_field_name}")
                 st.rerun()
 
-    if not assemblyai_api_key or not openai_api_key:
+    if not st.session_state.assemblyai_api_key or not st.session_state.openai_api_key:
         st.warning("Please enter your API keys in the sidebar to begin.")
         st.stop()
 
@@ -445,43 +438,47 @@ if st.session_state.current_screen == 'form_filler':
             st.header("Fill Out Your Form")
             for field in st.session_state.form_fields:
                 field_id, field_name = field["id"], field["name"]
-
                 with st.container():
                     st.subheader(field_name)
-
                     st.session_state.field_values[field_id] = st.text_input(
                         f"Value for {field_name}",
                         value=st.session_state.field_values.get(field_id, ""),
                         key=f"text_{field_id}")
-                
-                    # State 2: Recording
+
                     if st.session_state.recording_field == field_id:
                         audio_processor = get_audio_processor()
                         webrtc_ctx = webrtc_streamer(
                             key=f"recorder_{field_id}",
                             mode=WebRtcMode.SENDONLY,
                             audio_processor_factory=lambda: audio_processor,
-                            media_stream_constraints={"video": False, "audio": True})
-                        
+                            media_stream_constraints={"video": False, "audio": True},
+                            rtc_configuration={
+                                    "iceServers": [
+                                        # First, we still try the simple STUN server
+                                        {"urls": ["stun:stun.l.google.com:19302"]},
+                                        
+                                        # If STUN fails, we use this free TURN server as a fallback
+                                        {
+                                            "urls": ["turn:global.turn.twilio.com:3478?transport=udp"],
+                                            "username": st.secrets.get("TWILIO_USERNAME"),
+                                            "credential": st.secrets.get("TWILIO_CREDENTIAL"),
+                                        },
+                                    ]
+                                })
                         if webrtc_ctx.state.playing:
                             if not st.session_state.recording_started:
                                 st.session_state.recording_started = True
                             st.info("🔴 Recording...")
-
                         elif not webrtc_ctx.state.playing and st.session_state.recording_started:
                             st.session_state.recording_started = False
                             raw_audio_bytes = audio_processor.get_audio_bytes()
-
                             if raw_audio_bytes and len(raw_audio_bytes) > 0:
                                 st.session_state.temp_audio_bytes = pcm_to_wav_in_memory(raw_audio_bytes)
                                 st.session_state.confirmation_field = field_id
                             else:
                                 st.warning("Recording was too short or silent.")
-
                             st.session_state.recording_field = None
                             st.rerun()
-
-                    # State 3: Confirmation
                     elif st.session_state.confirmation_field == field_id:
                         st.audio(st.session_state.temp_audio_bytes, format="audio/wav")
                         c1, c2 = st.columns(2)
@@ -489,18 +486,14 @@ if st.session_state.current_screen == 'form_filler':
                             file_path = f"temp_audio_{field_id}.wav"
                             with open(file_path, "wb") as f:
                                 f.write(st.session_state.temp_audio_bytes)
-
                             with st.spinner(f"Transcribing audio for {field_name}..."):
-                                result = transcribe_for_form(assemblyai_api_key, file_path, selected_language_code)
-                            
+                                result = transcribe_for_form(st.session_state.assemblyai_api_key, file_path, selected_language_code)
                             if result and result.get("text"):
                                 transcript = result["text"]
                                 language_code = result["language_code"]
                                 st.info(f"Heard ({language_code}): \"{transcript}\"")
-
                                 with st.spinner(f"Translating and extracting '{field_name}'..."):
-                                    extracted_value = extract_field_info_with_crewai(openai_api_key, field_name, result["text"], result["language_code"])
-                                
+                                    extracted_value = extract_field_info_with_crewai(st.session_state.openai_api_key, field_name, result["text"], result["language_code"])
                                 if extracted_value:
                                     st.session_state.field_values[field_id] = extracted_value
                                     st.success(f"Field '{field_name}' auto-filled!")
@@ -508,8 +501,6 @@ if st.session_state.current_screen == 'form_filler':
                                     st.error(f"Extraction failed for '{field_name}'. Please try re-recording.")
                             else:
                                 st.error("Transcription failed or returned no text. Please try re-recording.")
-                            
-                            # Clean up file and reset state regardless of success/failure
                             if os.path.exists(file_path):
                                 os.remove(file_path)
                             st.session_state.confirmation_field = None
@@ -519,7 +510,6 @@ if st.session_state.current_screen == 'form_filler':
                             st.session_state.confirmation_field = None
                             st.session_state.temp_audio_bytes = None
                             st.rerun()
-                    
                     else:
                         if st.button(f"🎙️ Record Answer for {field_name}", key=f"record_btn_{field_id}"):
                             audio_processor = get_audio_processor()
@@ -527,14 +517,12 @@ if st.session_state.current_screen == 'form_filler':
                             st.session_state.recording_field = field_id
                             st.session_state.recording_started = False
                             st.rerun()
-
         with col2:
             st.header("Live Form Preview")
             if any(st.session_state.field_values.values()):
                 for field in st.session_state.form_fields:
                     value = st.session_state.field_values.get(field["id"], "")
                     st.markdown(f"**{field['name']}:** {value}")
-                
                 st.markdown("---")
                 st.markdown("### Export Options")
                 if st.button("💾 Save Form as JSON", use_container_width=True):
@@ -543,7 +531,6 @@ if st.session_state.current_screen == 'form_filler':
                     with open(filename, "w", encoding="utf-8") as f:
                         json.dump(form_data, f, indent=4)
                     st.success(f"Form saved as `{filename}`")
-
                 if st.button("🗑️ Clear Form", use_container_width=True):
                     st.session_state.form_fields, st.session_state.field_values = [], {}
                     st.rerun()
@@ -555,30 +542,22 @@ if st.session_state.current_screen == 'form_filler':
 # =====================================================================================
 
 elif st.session_state.current_screen == 'qna_analysis':
-    
     st.title("🎙️ Property Q&A with AI Analysis")
     st.markdown("Select a question from the sidebar to begin. Answer using your voice, confirm the recording, and see the AI-powered analysis.")
-    
-    # --- Q&A Specific Sidebar ---
+
     with st.sidebar:
         st.markdown("---")
         st.header("📋 Questions")
         st.write("Select a question to answer:")
-        
-        # Display all questions (predefined + custom)
         for i, q in enumerate(st.session_state.all_questions):
-            # Add indicators for question type and status
             if i < len(PREDEFINED_QUESTIONS):
-                question_type = "🔖"  # Predefined
+                question_type = "🔖"
             else:
-                question_type = "✨"  # Custom
-            
+                question_type = "✨"
             status = "✅" if i in st.session_state.answers else "⭕"
             label = f"{status} {question_type} {q}"
-            
             if st.button(label, key=f"q_button_{i}"):
                 st.session_state.selected_question_index = i
-                # Reset state for the new question
                 st.session_state.qna_audio_bytes = None
                 st.session_state.qna_audio_file_path = None
                 st.session_state.qna_transcription = None
@@ -588,16 +567,12 @@ elif st.session_state.current_screen == 'qna_analysis':
                 st.session_state.qna_crew_result = None
                 st.session_state.qna_relevancy_score = None
                 st.rerun()
-        
         st.markdown("---")
-        
-        # Section for adding custom questions
         st.subheader("➕ Add Custom Question")
-        new_question = st.text_area("Enter your custom question:", 
-                                   placeholder="Type your question here...", 
-                                   height=80,
-                                   key="new_question_input")
-        
+        new_question = st.text_area("Enter your custom question:",
+                                      placeholder="Type your question here...",
+                                      height=80,
+                                      key="new_question_input")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Add Question", disabled=not new_question.strip()):
@@ -608,27 +583,22 @@ elif st.session_state.current_screen == 'qna_analysis':
                     st.rerun()
                 elif new_question.strip() in st.session_state.all_questions:
                     st.warning("Question already exists!")
-        
         with col2:
             if st.button("Clear Custom", disabled=not st.session_state.custom_questions):
                 st.session_state.custom_questions = []
                 st.session_state.all_questions = PREDEFINED_QUESTIONS.copy()
-                # Reset selection if it was pointing to a custom question
                 if st.session_state.selected_question_index >= len(PREDEFINED_QUESTIONS):
                     st.session_state.selected_question_index = 0
                 st.success("Custom questions cleared!")
                 st.rerun()
 
-    if not assemblyai_api_key or not openai_api_key:
+    if not st.session_state.assemblyai_api_key or not st.session_state.openai_api_key:
         st.warning("Please enter your API keys in the sidebar to proceed.")
         st.stop()
 
-    # --- Main Q&A Logic ---
     if len(st.session_state.answers) == len(st.session_state.all_questions) and len(st.session_state.all_questions) > 0:
         st.header("✅ All Questions Answered!")
         st.balloons()
-        
-        # Save Q&A Analysis to JSON
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💾 Save Q&A Analysis as JSON", type="primary"):
@@ -640,7 +610,6 @@ elif st.session_state.current_screen == 'qna_analysis':
                     },
                     "questions_and_answers": []
                 }
-                
                 for i, data in sorted(st.session_state.answers.items()):
                     qna_entry = {
                         "question_number": i + 1,
@@ -654,17 +623,12 @@ elif st.session_state.current_screen == 'qna_analysis':
                         "transcription_confidence": data.get('transcription_confidence', 'N/A')
                     }
                     qna_data["questions_and_answers"].append(qna_entry)
-                
-                # Save to JSON file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"qna_analysis_{timestamp}.json"
-                
                 try:
                     with open(filename, 'w', encoding='utf-8') as f:
                         json.dump(qna_data, f, indent=2, ensure_ascii=False)
                     st.success(f"✅ Q&A Analysis saved successfully as: `{filename}`")
-                    
-                    # Provide download link
                     with open(filename, 'r', encoding='utf-8') as f:
                         json_content = f.read()
                     st.download_button(
@@ -676,10 +640,8 @@ elif st.session_state.current_screen == 'qna_analysis':
                     )
                 except Exception as e:
                     st.error(f"❌ Error saving Q&A analysis: {str(e)}")
-        
         with col2:
             if st.button("🔄 Start New Q&A Session"):
-                # Clear all Q&A data
                 st.session_state.answers = {}
                 st.session_state.selected_question_index = 0
                 st.session_state.qna_audio_bytes = None
@@ -692,7 +654,6 @@ elif st.session_state.current_screen == 'qna_analysis':
                 st.session_state.qna_relevancy_score = None
                 st.success("🔄 New Q&A session started!")
                 st.rerun()
-        
         st.markdown("---")
         st.subheader("📋 Complete Q&A Analysis Summary")
         for i, data in sorted(st.session_state.answers.items()):
@@ -709,22 +670,14 @@ elif st.session_state.current_screen == 'qna_analysis':
         current_question = st.session_state.all_questions[idx]
         st.header(f"Question {idx + 1}/{len(st.session_state.all_questions)}")
         st.subheader(current_question)
-
-        # Check if this question has already been answered
         if idx in st.session_state.answers:
-            # Show saved answer for review
             saved_data = st.session_state.answers[idx]
-            
             st.markdown("### 📋 Previously Saved Answer")
             st.success("✅ This question has been answered. You can review your response below:")
-            
-            # Display saved information
             col_review1, col_review2 = st.columns(2)
             with col_review1:
                 st.markdown("#### 📝 Original Transcription")
                 st.text_area("Your recorded answer:", value=saved_data['transcription'], height=100, disabled=True, key=f"review_trans_{idx}")
-                
-                # Show audio playback
                 st.markdown("#### 🎵 Audio Recording")
                 if os.path.exists(saved_data['audio_file']):
                     with open(saved_data['audio_file'], 'rb') as audio_file:
@@ -732,25 +685,18 @@ elif st.session_state.current_screen == 'qna_analysis':
                     st.audio(audio_bytes, format="audio/wav")
                 else:
                     st.warning("Audio file not found")
-            
             with col_review2:
                 st.markdown("#### 🤖 AI Analysis")
                 st.info(saved_data['ai_analysis'])
-                
                 st.markdown("#### 📊 Quality Score")
                 st.info(saved_data['relevancy_score'])
-            
-            # Option to re-record
             st.markdown("---")
             col_action1, col_action2, col_action3 = st.columns(3)
             with col_action1:
                 if st.button("🔄 Re-record This Answer", key=f"rerecord_question_{idx}", help="Start over with this question"):
-                    # Clear the saved answer and reset state
                     del st.session_state.answers[idx]
-                    # Clear audio buffer
                     qna_audio_processor = get_qna_audio_processor()
                     qna_audio_processor.audio_buffer = queue.Queue()
-                    # Clear all QnA states
                     st.session_state.qna_audio_bytes = None
                     st.session_state.qna_audio_file_path = None
                     st.session_state.qna_transcription = None
@@ -761,119 +707,99 @@ elif st.session_state.current_screen == 'qna_analysis':
                     st.session_state.qna_relevancy_score = None
                     st.success("🔄 Ready to re-record! Answer cleared.")
                     st.rerun()
-            
             with col_action2:
-                # Move to next unanswered question
                 next_unanswered = None
                 for i in range(len(st.session_state.all_questions)):
                     if i not in st.session_state.answers:
                         next_unanswered = i
                         break
-                
                 if next_unanswered is not None:
                     if st.button(f"➡️ Go to Next Unanswered", key=f"next_unanswered_{idx}"):
                         st.session_state.selected_question_index = next_unanswered
                         st.rerun()
                 else:
                     st.info("🎉 All questions answered!")
-            
             with col_action3:
                 if st.button("📋 View All Answers", key=f"view_all_{idx}"):
-                    # Force showing the completion view
-                    st.session_state.selected_question_index = 0  # Reset to trigger completion view
+                    st.session_state.selected_question_index = 0
                     st.rerun()
-        
         else:
-            # Original Q&A flow for unanswered questions
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("#### Step 1: Record Your Answer")
                 if not st.session_state.qna_audio_bytes:
                     qna_audio_processor = get_qna_audio_processor()
                     webrtc_ctx = webrtc_streamer(
-                        key=f"qna-recorder-{idx}", 
-                        mode=WebRtcMode.SENDONLY, 
-                        audio_processor_factory=lambda: qna_audio_processor, 
-                        media_stream_constraints={"video": False, "audio": True})
-                    
+                        key=f"qna-recorder-{idx}",
+                        mode=WebRtcMode.SENDONLY,
+                        audio_processor_factory=lambda: qna_audio_processor,
+                        media_stream_constraints={"video": False, "audio": True},
+                        rtc_configuration={
+                            "iceServers": [
+                                # First, we still try the simple STUN server
+                                {"urls": ["stun:stun.l.google.com:19302"]},
+                                
+                                # If STUN fails, we use this free TURN server as a fallback
+                                {
+                                    "urls": ["turn:global.turn.twilio.com:3478?transport=udp"],
+                                    "username": st.secrets.get("TWILIO_USERNAME"),
+                                    "credential": st.secrets.get("TWILIO_CREDENTIAL"),
+                                },
+                            ]
+                        })
                     if webrtc_ctx.state.playing:
                         if not st.session_state.qna_recording_started:
                             st.session_state.qna_recording_started = True
-                            qna_audio_processor.audio_buffer = queue.Queue()  # Clear buffer when recording starts
+                            qna_audio_processor.audio_buffer = queue.Queue()
                         st.markdown("🔴 **Recording...**")
-
                     elif not webrtc_ctx.state.playing and st.session_state.qna_recording_started:
                         st.session_state.qna_recording_started = False
                         raw_audio_bytes = qna_audio_processor.get_audio_bytes()
-                        
-                        if raw_audio_bytes and len(raw_audio_bytes) > 16000:  # Minimum size check like reference
+                        if raw_audio_bytes and len(raw_audio_bytes) > 16000:
                             wav_bytes = pcm_to_wav_in_memory(raw_audio_bytes)
-                            
                             file_path = f"qna_temp_audio_{idx}.wav"
                             with open(file_path, "wb") as f:
                                 f.write(wav_bytes)
-
                             st.session_state.qna_audio_file_path = file_path
                             st.session_state.qna_audio_bytes = wav_bytes
                             st.rerun()
                         else:
                             st.warning("Recording was too short. Please try again.")
-            
             with col2:
                 if st.session_state.qna_audio_bytes and not st.session_state.qna_transcription:
                     st.markdown("#### Step 2: Confirm & Transcribe")
                     st.audio(st.session_state.qna_audio_bytes, format="audio/wav")
-                    
                     confirm_col, rerecord_col = st.columns(2)
-                    
                     if confirm_col.button("✅ Confirm and Transcribe", key=f"confirm_{idx}"):
-                        # File already saved during recording stop, just proceed with transcription
-                        
-                        # Progress indicators
                         progress_bar = st.progress(0)
                         status_text = st.empty()
-                        
-                        # # Step 1: Upload and start transcription
-                        # status_text.text("🔄 Uploading audio file...")
-                        # progress_bar.progress(25)
-                        
                         with st.spinner("Transcribing audio..."):
-                            result = transcribe_for_qna(assemblyai_api_key, st.session_state.qna_audio_file_path)
-                        
+                            result = transcribe_for_qna(st.session_state.assemblyai_api_key, st.session_state.qna_audio_file_path)
                         if result:
                             progress_bar.progress(75)
                             status_text.text("✅ Transcription completed!")
-                            
-                            # Store transcription results
                             st.session_state.qna_transcription = result.get("text")
                             st.session_state.qna_language_code = result.get("language_code")
                             st.session_state.qna_transcription_confidence = result.get("confidence")
-                            
-                            # Convert to English if needed
                             if st.session_state.qna_language_code and st.session_state.qna_language_code.lower() != 'en':
                                 status_text.text("🔄 Converting to English...")
                                 progress_bar.progress(90)
-                                
                                 with st.spinner("Converting to English..."):
                                     english_text = convert_to_english(
-                                        openai_api_key, 
-                                        st.session_state.qna_transcription, 
+                                        st.session_state.openai_api_key,
+                                        st.session_state.qna_transcription,
                                         st.session_state.qna_language_code
                                     )
                                 st.session_state.qna_converted_text = english_text
                             else:
                                 st.session_state.qna_converted_text = st.session_state.qna_transcription
-                            
                             progress_bar.progress(100)
                             status_text.text("🎉 Processing complete!")
-                            time.sleep(1)  # Brief pause to show completion
+                            time.sleep(1)
                         else:
                             st.error("❌ Transcription failed. Please try again.")
-                        
                         st.rerun()
-                    
                     if rerecord_col.button("🔄 Re-record", key=f"rerecord_{idx}"):
-                        # Clear all QnA states for fresh recording
                         st.session_state.qna_audio_bytes = None
                         st.session_state.qna_audio_file_path = None
                         st.session_state.qna_transcription = None
@@ -887,28 +813,20 @@ elif st.session_state.current_screen == 'qna_analysis':
 
             if st.session_state.qna_transcription and not st.session_state.qna_crew_result:
                 st.markdown("#### Step 3: Review & Process")
-                
-                # Show language detection results
                 col_lang, col_conf = st.columns(2)
                 with col_lang:
                     st.info(f"🌐 **Detected Language:** {st.session_state.qna_language_code.upper() if st.session_state.qna_language_code else 'Unknown'}")
                 with col_conf:
                     confidence_pct = round(st.session_state.qna_transcription_confidence * 100, 1) if st.session_state.qna_transcription_confidence else 0
                     st.info(f"📊 **Confidence:** {confidence_pct}%")
-                
-                # Show original transcription
                 st.text_area("📝 Original Transcription:", value=st.session_state.qna_transcription, height=80, disabled=True)
-                
-                # Show English converted text if different from original
-                if (st.session_state.qna_converted_text and 
-                    st.session_state.qna_converted_text != st.session_state.qna_transcription):
+                if (st.session_state.qna_converted_text and
+                        st.session_state.qna_converted_text != st.session_state.qna_transcription):
                     st.text_area("🔤 English Converted Text:", value=st.session_state.qna_converted_text, height=80, disabled=True)
-                
                 if st.button("🤖 Process with AI Agents", key=f"process_{idx}"):
                     with st.spinner("AI agents are analyzing your answer..."):
-                        # Use the English converted text for analysis
                         analysis_text = st.session_state.qna_converted_text or st.session_state.qna_transcription
-                        crew_result = process_answer_with_crewai(openai_api_key, current_question, analysis_text, st.session_state.qna_language_code)
+                        crew_result = process_answer_with_crewai(st.session_state.openai_api_key, current_question, analysis_text, st.session_state.qna_language_code)
                     if isinstance(crew_result, dict):
                         st.session_state.qna_crew_result = crew_result.get("summary")
                         st.session_state.qna_relevancy_score = crew_result.get("relevancy_score")
@@ -929,15 +847,11 @@ elif st.session_state.current_screen == 'qna_analysis':
                         "language_code": st.session_state.qna_language_code,
                         "transcription_confidence": st.session_state.qna_transcription_confidence
                     }
-                    # Reset for next question
                     st.session_state.qna_audio_bytes, st.session_state.qna_audio_file_path, st.session_state.qna_transcription, st.session_state.qna_converted_text, st.session_state.qna_crew_result = None, None, None, None, None
                     st.session_state.qna_relevancy_score = None
-                    
-                    # Automatically move to next question
                     if idx + 1 < len(st.session_state.all_questions):
                         st.session_state.selected_question_index = idx + 1
                         st.success(f"✅ Answer saved! Moving to Question {idx + 2}...")
                     else:
                         st.success("🎉 All questions completed!")
-                    
                     st.rerun()

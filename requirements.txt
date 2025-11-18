@@ -1,21 +1,15 @@
-streamlit>=1.13.0
-streamlit-webrtc>=0.47.0
-assemblyai>=0.22.0
-crewai>=0.28.0
-langchain-openai>=0.1.0
-python-dotenv>=1.0.0
-av>=11.0.0
-websocket-client>=1.6.0
-websockets>=12.0
-SpeechRecognition
-pyaudio>=0.2.11
-openai>=1.30.0
-asyncio
-numpy>=1.21.0
-deep-translator>=1.11.0
-word2number>=1.1
-dateparser>=1.1.0
-requests>=2.25.0
-flask
-flask_socketio
+streamlit==1.35.0
+streamlit-webrtc==0.47.6
+aiortc==1.6.0
+requests==2.31.0
+numpy==1.26.4
+av>=12.0.0
+python-dotenv==1.0.1
 
+
+# --- Final AI Stack with all conflicts resolved ---
+openai==1.35.7 # <-- UPDATED to a newer version to satisfy all libraries
+crewai==0.35.8
+langchain==0.1.20
+langchain-openai==0.1.7
+langchain-community==0.0.38
